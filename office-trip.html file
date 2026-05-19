@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+
+<html lang="si">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Office Trip">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f1923">
+<meta name="description" content="Office Trip Expense Tracker">
+<title>✈️ Office Trip</title>
+
+<!-- PWA Manifest inline -->
+
+<script>
+const manifestData = {
+  name: "Office Trip Tracker",
+  short_name: "Office Trip",
+  description: "Office trip expense tracker",
+  start_url: ".",
+  display: "standalone",
+  background_color: "#0f1923",
+  theme_color: "#0f1923",
+  orientation: "portrait",
+  icons: [
+    { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230f1923'/%3E%3Ctext y='130' x='30' font-size='120'%3E✈️%3C/text%3E%3C/svg%3E", sizes: "192x192", type: "image/svg+xml" },
+    { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='80' fill='%230f1923'/%3E%3Ctext y='370' x='60' font-size='320'%3E✈️%3C/text%3E%3C/svg%3E", sizes: "512x512", type: "image/svg+xml" }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
+const manifestUrl = URL.createObjectURL(blob);
+document.write('<link rel="manifest" href="' + manifestUrl + '">');
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #0f1923;
+  --card: #1a2634;
+  --cardBorder: #243447;
+  --accent: #f5a623;
+  --accentGlow: #f5a62340;
+  --green: #2ecc71;
+  --red: #e74c3c;
+  --blue: #3498db;
+  --text: #e8f4f8;
+  --muted: #7f9aad;
+  --surface: #141f2b;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans Sinhala', 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  padding-bottom: 40px;
+}
+
+/* LOADING */
+#loadingScreen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 999;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px;
+}
+.load-bar-wrap { width: 40px; height: 4px; background: var(--cardBorder); border-radius: 99px; overflow: hidden; margin-top: 8px; }
+.load-bar { height: 100%; width: 60%; background: var(--accent); border-radius: 99px; animation: slide 1s infinite; }
+@keyframes slide { 0%{transform:translateX(-100%)} 100%{transform:translateX(250%)} }
+
+/* HEADER */
+.header {
+  background: linear-gradient(135deg, #1a2634 0%, #0f1923 100%);
+  border-bottom: 1px solid var(--cardBorder);
+  padding: 52px 20px 0;
+  position: sticky; top: 0; z-index: 100;
+}
+.header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.header-title { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+.header-sync { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.header-balance-label { font-size: 11px; color: var(--muted); text-align: right; }
+.header-balance { font-size: 20px; font-weight: 800; text-align: right; }
+
+/* TABS */
+.tabs { display: flex; gap: 4px; }
+.tab {
+  flex: 1; padding: 8px 4px; font-size: 11px; font-weight: 700;
+  border: none; cursor: pointer; border-radius: 8px 8px 0 0;
+  background: transparent; color: var(--muted);
+  transition: all .2s; font-family: inherit;
+}
+.tab.active { background: var(--accent); color: #000; }
+
+/* MAIN */
+.main { padding: 20px 16px; max-width: 480px; margin: 0 auto; }
+
+/* NOTIFICATION */
+.notif {
+  position: fixed; top: 90px; left: 50%; transform: translateX(-50%);
+  padding: 10px 20px; border-radius: 30px;
+  font-weight: 700; font-size: 13px; z-index: 999;
+  box-shadow: 0 4px 20px #0006;
+  transition: opacity 0.3s;
+  white-space: nowrap;
+}
+
+/* CARDS */
+.card {
+  background: var(--card);
+  border: 1px solid var(--cardBorder);
+  border-radius: 16px; padding: 16px;
+}
+.card-title { font-size: 15px; font-weight: 800; margin-bottom: 16px; }
+
+/* STATS GRID */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.stat-card { background: var(--card); border: 1px solid var(--cardBorder); border-radius: 16px; padding: 16px; }
+.stat-icon { font-size: 22px; }
+.stat-label { font-size: 11px; color: var(--muted); margin-top: 6px; }
+.stat-value { font-size: 18px; font-weight: 800; margin-top: 4px; }
+
+/* BALANCE CARD */
+.balance-card {
+  border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 16px;
+}
+.balance-card .label { font-size: 13px; color: var(--muted); }
+.balance-card .amount { font-size: 36px; font-weight: 900; margin-top: 6px; }
+.balance-card .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+/* CATEGORY BAR */
+.cat-row { margin-bottom: 10px; }
+.cat-row-top { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+.bar-bg { height: 6px; background: var(--surface); border-radius: 99px; overflow: hidden; }
+.bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #ff6b35); border-radius: 99px; transition: width .5s; }
+
+/* PERSON ROW */
+.person-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid var(--cardBorder);
+}
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #ff6b35);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; color: #000; flex-shrink: 0;
+}
+.avatar.large { width: 38px; height: 38px; font-size: 16px; }
+
+/* FORM */
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+.input {
+  width: 100%; background: var(--surface);
+  border: 1px solid var(--cardBorder); border-radius: 10px;
+  padding: 12px 14px; color: var(--text); font-size: 15px;
+  outline: none; font-family: inherit;
+  transition: border-color 0.2s;
+}
+.input:focus { border-color: var(--accent); }
+.input::placeholder { color: var(--muted); }
+
+/* TYPE TOGGLE */
+.type-toggle { display: flex; gap: 8px; margin-bottom: 16px; background: var(--surface); border-radius: 12px; padding: 4px; }
+.type-btn {
+  flex: 1; padding: 10px; border: none; border-radius: 10px; cursor: pointer;
+  font-weight: 700; font-size: 13px; transition: all .2s; font-family: inherit;
+  background: transparent; color: var(--muted);
+}
+.type-btn.income.active { background: var(--green); color: #fff; }
+.type-btn.expense.active { background: var(--red); color: #fff; }
+
+/* CHIP BUTTONS */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 6px 12px; border-radius: 20px; font-size: 12px;
+  cursor: pointer; font-weight: 600; transition: all .2s; font-family: inherit;
+  border: 1px solid var(--cardBorder); background: transparent; color: var(--muted);
+}
+.chip.cat-active { border-color: var(--accent); background: var(--accentGlow); color: var(--accent); }
+.chip.paid-active { border-color: var(--blue); background: #3498db30; color: var(--blue); }
+
+/* SUBMIT BTN */
+.submit-btn {
+  width: 100%; padding: 14px; border-radius: 12px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--accent), #ff6b35);
+  color: #000; font-weight: 800; font-size: 15px; letter-spacing: 0.5px;
+  font-family: inherit; transition: opacity 0.2s;
+}
+.submit-btn:active { opacity: 0.85; }
+
+/* MEMBER CARD */
+.member-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; background: var(--surface); border-radius: 12px;
+  margin-bottom: 10px;
+}
+
+/* ADD MEMBER ROW */
+.add-member-row { display: flex; gap: 10px; }
+.add-member-row .input { flex: 1; }
+.icon-btn {
+  padding: 10px 16px; border-radius: 10px; border: none;
+  cursor: pointer; font-weight: 800; font-size: 14px; font-family: inherit;
+}
+
+/* DASHED BTN */
+.dashed-btn {
+  width: 100%; padding: 12px; border-radius: 12px;
+  border: 2px dashed var(--cardBorder); background: transparent;
+  color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 600;
+  font-family: inherit;
+}
+
+/* INFO BOX */
+.info-box { font-size: 12px; color: var(--muted); line-height: 2; }
+.warn-box { margin-top: 10px; padding: 8px 12px; background: #f5a62315; border-radius: 10px; font-size: 11px; color: var(--accent); }
+
+.outline-btn {
+  width: 100%; padding: 10px; border-radius: 10px;
+  font-weight: 700; cursor: pointer; font-size: 13px; font-family: inherit;
+  transition: opacity 0.2s;
+}
+.outline-btn:active { opacity: 0.8; }
+
+/* TX ITEM */
+.tx-item {
+  border-radius: 14px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 10px;
+}
+.tx-item.income { background: var(--card); border: 1px solid #2ecc7130; }
+.tx-item.expense { background: var(--card); border: 1px solid #e74c3c30; }
+.tx-icon { font-size: 22px; }
+.tx-body { flex: 1; min-width: 0; }
+.tx-desc { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.tx-amount { font-weight: 800; font-size: 15px; text-align: right; }
+.tx-delete { font-size: 11px; color: var(--muted); background: none; border: none; cursor: pointer; margin-top: 2px; font-family: inherit; }
+
+/* SECTION HEADER */
+.section-h { font-size: 14px; font-weight: 800; margin-bottom: 4px; }
+
+/* GAP UTILS */
+.gap-col { display: flex; flex-direction: column; gap: 16px; }
+.gap-col-sm { display: flex; flex-direction: column; gap: 10px; }
+.mb16 { margin-bottom: 16px; }
+.mb12 { margin-bottom: 12px; }
+.mt8 { margin-top: 8px; }
+.mt10 { margin-top: 10px; }
+.mt12 { margin-top: 12px; }
+.empty { padding: 40px; text-align: center; color: var(--muted); font-size: 13px; }
+</style>
+
+</head>
+<body>
+
+<!-- LOADING -->
+
+<div id="loadingScreen">
+  <div style="font-size:48px">✈️</div>
+  <div style="font-size:18px;font-weight:800">Office Trip</div>
+  <div style="font-size:13px;color:var(--muted)">Data load කරමින්…</div>
+  <div class="load-bar-wrap"><div class="load-bar"></div></div>
+</div>
+
+<!-- NOTIFICATION -->
+
+<div id="notif" class="notif" style="display:none"></div>
+
+<!-- HEADER -->
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="header-title">✈️ Office Trip</div>
+      <div class="header-sync" id="syncStatus">⏳ Loading…</div>
+    </div>
+    <div>
+      <div class="header-balance-label">ශේෂය</div>
+      <div class="header-balance" id="headerBalance">රු. 0</div>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('dashboard',this)">📊 සාරාංශ</button>
+    <button class="tab" onclick="switchTab('add',this)">➕ Add</button>
+    <button class="tab" onclick="switchTab('members',this)">👥 Members</button>
+    <button class="tab" onclick="switchTab('history',this)">📋 History</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+
+<div class="main">
+
+  <!-- DASHBOARD -->
+
+  <div id="tab-dashboard">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-label">එකතු මුදල්</div>
+        <div class="stat-value" id="totalIncome" style="color:var(--green)">රු. 0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💸</div>
+        <div class="stat-label">මුළු වියදම</div>
+        <div class="stat-value" id="totalExpense" style="color:var(--red)">රු. 0</div>
+      </div>
+    </div>
+    <div class="balance-card" id="balanceCard">
+      <div class="label">ශේෂ මුදල</div>
+      <div class="amount" id="balanceAmount">රු. 0</div>
+      <div class="sub" id="balanceSub">ඉතිරි ශේෂය ✅</div>
+    </div>
+    <div class="card mb16" id="catCard" style="display:none">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px">🏷️ කාණ්ඩ අනුව</div>
+      <div id="catList"></div>
+    </div>
+    <div class="card" id="memberSpendCard" style="display:none">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px">👤 පුද්ගල වියදම්</div>
+      <div id="memberSpendList"></div>
+    </div>
+  </div>
+
+  <!-- ADD -->
+
+  <div id="tab-add" style="display:none">
+    <div class="card">
+      <div class="card-title">ගනුදෙනුව එකතු කරන්න</div>
+      <div class="type-toggle">
+        <button class="type-btn income active" id="typeIncome" onclick="setType('income')">💰 ආදායම</button>
+        <button class="type-btn expense" id="typeExpense" onclick="setType('expense')">💸 වියදම</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">මුදල (රු.)</label>
+        <input class="input" id="fAmount" type="number" placeholder="0.00" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">විස්තරය</label>
+        <input class="input" id="fDesc" placeholder="උදා: කෑම ගත්තා…">
+      </div>
+      <div class="form-group">
+        <label class="form-label">කාණ්ඩය</label>
+        <div class="chips" id="catChips"></div>
+      </div>
+      <div class="form-group" id="paidByGroup">
+        <label class="form-label">ගෙවූ කෙනා</label>
+        <div class="chips" id="paidByChips"></div>
+      </div>
+      <button class="submit-btn" id="submitBtn" onclick="addTransaction()">💰 ආදායම් එකතු කරන්න</button>
+    </div>
+  </div>
+
+  <!-- MEMBERS -->
+
+  <div id="tab-members" style="display:none">
+    <div class="gap-col">
+      <div class="card">
+        <div class="card-title">👥 Trip Members</div>
+        <div id="memberList"></div>
+        <div id="addMemberArea">
+          <button class="dashed-btn" onclick="showAddMember()">+ Member Add කරන්න</button>
+        </div>
+        <div id="addMemberForm" style="display:none">
+          <div class="add-member-row">
+            <input class="input" id="newMemberInput" placeholder="නම ඇතුලු කරන්න" onkeydown="if(event.key==='Enter')addMember()">
+            <button class="icon-btn" style="background:var(--accent);color:#000" onclick="addMember()">Add</button>
+            <button class="icon-btn" style="background:transparent;border:1px solid var(--cardBorder);color:var(--muted)" onclick="hideAddMember()">✕</button>
+          </div>
+        </div>
+      </div>
+
+```
+  <div class="card">
+    <div style="font-size:13px;font-weight:700;margin-bottom:8px">🔗 Share කරන්නේ කෙසේද?</div>
+    <div class="info-box">
+      1. මේ HTML file එක hosting site එකකට upload කරන්න<br>
+      2. WhatsApp group එකට link share කරන්න<br>
+      3. ඕනෑම කෙනෙකුට open කළ හැකිය<br>
+      4. සෑම 4s කට auto-sync වේ 🔄<br>
+      5. ඕනෑම device එකෙන් edit කළ හැකිය ✅
+    </div>
+    <div class="warn-box">⚠️ Data browser localStorage-ට save වේ. Trip ඉවර වූ පසු Reset කරන්න.</div>
+    <button class="outline-btn mt12" style="background:#25d36620;color:#25d366;border:none" onclick="copyLink()">
+      📋 Link Copy කරන්න
+    </button>
+    <button class="outline-btn mt8" style="background:transparent;color:var(--red);border:1px solid #e74c3c30" onclick="resetData()">
+      🗑️ සියලු Data Reset කරන්න
+    </button>
+  </div>
+</div>
+```
+
+  </div>
+
+  <!-- HISTORY -->
+
+  <div id="tab-history" style="display:none">
+    <div class="section-h mb12" id="historyTitle">📋 ගනුදෙනු ඉතිහාසය (0)</div>
+    <div id="txList">
+      <div class="empty">😴 ගනුදෙනු නැත. Add tab එකෙන් add කරන්න!</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────
+const STORAGE_KEY = 'office-trip-data-v2';
+const POLL_MS = 4000;
+
+const CATEGORIES = ['ආහාර','ගමන','නවාතැන','කඩ','විනෝදාංශ','වෙනත්'];
+const CAT_EMOJI = {'ආහාර':'🍽️','ගමන':'🚌','නවාතැන':'🏨','කඩ':'🛍️','විනෝදාංශ':'🎡','වෙනත්':'📦'};
+
+// ─── STATE ────────────────────────────────────────────────
+let members = [];
+let transactions = [];
+let currentType = 'income';
+let currentCat = 'ආහාර';
+let currentPaidBy = '';
+let pollTimer = null;
+let lastSavedTs = 0;
+
+// ─── STORAGE (localStorage with shared-sim) ───────────────
+function loadData(isPolling = false) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (!isPolling || data.updatedAt > lastSavedTs) {
+        members = data.members || [];
+        transactions = data.transactions || [];
+      }
+    }
+    setSyncStatus('ok');
+    renderAll();
+  } catch(e) {
+    setSyncStatus('error');
+  }
+}
+
+function saveData() {
+  const ts = Date.now();
+  lastSavedTs = ts;
+  const payload = { members, transactions, updatedAt: ts };
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    setSyncStatus('ok');
+  } catch(e) {
+    setSyncStatus('error');
+    showNotif('⚠️ Save failed', '#e74c3c');
+  }
+}
+
+// ─── SYNC STATUS ──────────────────────────────────────────
+function setSyncStatus(status) {
+  const el = document.getElementById('syncStatus');
+  const now = new Date().toLocaleTimeString('si-LK');
+  if (status === 'ok') el.innerHTML = `⟳ ${now} · <span style="color:var(--green)">● LIVE</span>`;
+  if (status === 'error') el.innerHTML = `<span style="color:var(--red)">⚠️ Sync error</span>`;
+  if (status === 'loading') el.innerHTML = `<span style="color:var(--accent)">⏳ Loading…</span>`;
+}
+
+// ─── NOTIFICATION ─────────────────────────────────────────
+let notifTimer = null;
+function showNotif(msg, color = '#2ecc71') {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.style.background = color;
+  el.style.color = '#fff';
+  el.style.display = 'block';
+  el.style.opacity = '1';
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => { el.style.opacity = '0'; setTimeout(()=>el.style.display='none', 300); }, 2800);
+}
+
+// ─── TABS ─────────────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+  document.getElementById('tab-' + id).style.display = 'block';
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ─── MEMBERS ──────────────────────────────────────────────
+function showAddMember() {
+  document.getElementById('addMemberArea').style.display = 'none';
+  document.getElementById('addMemberForm').style.display = 'block';
+  document.getElementById('newMemberInput').focus();
+}
+function hideAddMember() {
+  document.getElementById('addMemberArea').style.display = 'block';
+  document.getElementById('addMemberForm').style.display = 'none';
+  document.getElementById('newMemberInput').value = '';
+}
+function addMember() {
+  const input = document.getElementById('newMemberInput');
+  const name = input.value.trim();
+  if (!name) return;
+  if (members.includes(name)) { showNotif('නමක් දැනටමත් ඇත!', '#e74c3c'); return; }
+  members.push(name);
+  saveData();
+  input.value = '';
+  hideAddMember();
+  renderAll();
+  showNotif(`${name} එකතු කරන ලදී ✓`);
+}
+function renderMembers() {
+  const spend = getMemberSpend();
+  const list = document.getElementById('memberList');
+  if (members.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px 0;font-size:13px">තවම members නැත. Add කරන්න!</div>';
+    return;
+  }
+  list.innerHTML = members.map(m => `
+    <div class="member-item">
+      <div class="avatar large">${m[0].toUpperCase()}</div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px">${m}</div>
+        <div style="font-size:11px;color:var(--muted)">වියදම: ${fmt(spend[m]||0)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─── FORM ─────────────────────────────────────────────────
+function setType(type) {
+  currentType = type;
+  document.getElementById('typeIncome').className = 'type-btn income' + (type==='income'?' active':'');
+  document.getElementById('typeExpense').className = 'type-btn expense' + (type==='expense'?' active':'');
+  document.getElementById('paidByGroup').style.display = type==='expense' ? 'block' : 'none';
+  document.getElementById('submitBtn').textContent = type==='income' ? '💰 ආදායම් එකතු කරන්න' : '💸 වියදම් එකතු කරන්න';
+}
+
+function renderCatChips() {
+  document.getElementById('catChips').innerHTML = CATEGORIES.map(c => `
+    <button class="chip ${c===currentCat?'cat-active':''}" onclick="setCat('${c}')">${CAT_EMOJI[c]} ${c}</button>
+  `).join('');
+}
+function setCat(cat) { currentCat = cat; renderCatChips(); }
+
+function renderPaidByChips() {
+  const el = document.getElementById('paidByChips');
+  if (members.length === 0) {
+    el.innerHTML = '<span style="font-size:12px;color:var(--muted)">Members tab එකෙන් කෙනෙකු එකතු කරන්න</span>';
+    return;
+  }
+  el.innerHTML = members.map(m => `
+    <button class="chip ${m===currentPaidBy?'paid-active':''}" onclick="setPaidBy('${m}')">${m}</button>
+  `).join('');
+}
+function setPaidBy(m) { currentPaidBy = m; renderPaidByChips(); }
+
+function addTransaction() {
+  const amount = parseFloat(document.getElementById('fAmount').value);
+  const desc = document.getElementById('fDesc').value.trim();
+  if (!amount || amount <= 0) { showNotif('වලංගු මුදලක් ඇතුලු කරන්න', '#e74c3c'); return; }
+  if (!desc) { showNotif('විස්තරය ඇතුලු කරන්න', '#e74c3c'); return; }
+  if (currentType === 'expense' && !currentPaidBy) { showNotif('ගෙවන්නා තෝරන්න', '#e74c3c'); return; }
+
+  const tx = {
+    id: Date.now(),
+    type: currentType,
+    amount,
+    desc,
+    category: currentCat,
+    paidBy: currentType === 'expense' ? currentPaidBy : null,
+    date: new Date().toLocaleString('si-LK'),
+    ts: Date.now()
+  };
+  transactions.unshift(tx);
+  saveData();
+  document.getElementById('fAmount').value = '';
+  document.getElementById('fDesc').value = '';
+  renderAll();
+  showNotif(currentType === 'income' ? 'ආදායම් එකතු කරන ලදී ✓' : 'වියදම් එකතු කරන ලදී ✓');
+}
+
+function deleteTransaction(id) {
+  transactions = transactions.filter(t => t.id !== id);
+  saveData();
+  renderAll();
+  showNotif('ගනුදෙනුව ඉවත් කරන ලදී');
+}
+
+// ─── CALCULATIONS ─────────────────────────────────────────
+function getMemberSpend() {
+  return members.reduce((acc, m) => {
+    acc[m] = transactions.filter(t => t.type==='expense' && t.paidBy===m).reduce((s,t)=>s+t.amount,0);
+    return acc;
+  }, {});
+}
+
+function fmt(n) { return 'රු. ' + Number(n).toLocaleString('si-LK'); }
+
+// ─── RENDER ───────────────────────────────────────────────
+function renderDashboard() {
+  const totalIn = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const totalEx = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const balance = totalIn - totalEx;
+
+  document.getElementById('totalIncome').textContent = fmt(totalIn);
+  document.getElementById('totalExpense').textContent = fmt(totalEx);
+  document.getElementById('headerBalance').textContent = fmt(balance);
+  document.getElementById('headerBalance').style.color = balance >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('balanceAmount').textContent = fmt(Math.abs(balance));
+  document.getElementById('balanceAmount').style.color = balance >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('balanceSub').textContent = balance >= 0 ? 'ඉතිරි ශේෂය ✅' : 'ශේෂය නැත ⚠️';
+
+  const bc = document.getElementById('balanceCard');
+  bc.style.background = balance >= 0
+    ? 'linear-gradient(135deg, #1a3a2a, var(--card))'
+    : 'linear-gradient(135deg, #3a1a1a, var(--card))';
+  bc.style.border = `1px solid ${balance >= 0 ? '#2ecc7150' : '#e74c3c50'}`;
+
+  // Categories
+  const catTotals = CATEGORIES.map(c => ({
+    cat: c,
+    total: transactions.filter(t=>t.type==='expense'&&t.category===c).reduce((s,t)=>s+t.amount,0)
+  })).filter(c=>c.total>0).sort((a,b)=>b.total-a.total);
+
+  const catCard = document.getElementById('catCard');
+  if (catTotals.length > 0) {
+    catCard.style.display = 'block';
+    document.getElementById('catList').innerHTML = catTotals.map(({cat,total}) => `
+      <div class="cat-row">
+        <div class="cat-row-top">
+          <span>${CAT_EMOJI[cat]} ${cat}</span>
+          <span style="color:var(--accent);font-weight:700">${fmt(total)}</span>
+        </div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(100,(total/totalEx)*100)}%"></div></div>
+      </div>
+    `).join('');
+  } else { catCard.style.display = 'none'; }
+
+  // Member spend
+  const spend = getMemberSpend();
+  const mCard = document.getElementById('memberSpendCard');
+  if (members.length > 0) {
+    mCard.style.display = 'block';
+    document.getElementById('memberSpendList').innerHTML = members.map(m => `
+      <div class="person-row">
+        <div style="display:flex;align-items:center;gap:10px;flex:1">
+          <div class="avatar">${m[0]}</div>
+          <span style="font-size:14px">${m}</span>
+        </div>
+        <span style="font-weight:700;color:${(spend[m]||0)>0?'var(--red)':'var(--muted)'};font-size:14px">${fmt(spend[m]||0)}</span>
+      </div>
+    `).join('');
+  } else { mCard.style.display = 'none'; }
+}
+
+function renderHistory() {
+  document.getElementById('historyTitle').textContent = `📋 ගනුදෙනු ඉතිහාසය (${transactions.length})`;
+  const list = document.getElementById('txList');
+  if (transactions.length === 0) {
+    list.innerHTML = '<div class="empty">😴 ගනුදෙනු නැත. Add tab එකෙන් add කරන්න!</div>';
+    return;
+  }
+  list.innerHTML = transactions.map(tx => `
+    <div class="tx-item ${tx.type}">
+      <div class="tx-icon">${tx.type==='income'?'💰':CAT_EMOJI[tx.category]}</div>
+      <div class="tx-body">
+        <div class="tx-desc">${tx.desc}</div>
+        <div class="tx-meta">${tx.type==='expense'?`${tx.paidBy} · ${tx.category}`:'ආදායම'} · ${tx.date}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="tx-amount" style="color:${tx.type==='income'?'var(--green)':'var(--red)'}">
+          ${tx.type==='income'?'+':'-'}${fmt(tx.amount)}
+        </div>
+        <button class="tx-delete" onclick="deleteTransaction(${tx.id})">🗑️ Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAll() {
+  renderDashboard();
+  renderMembers();
+  renderCatChips();
+  renderPaidByChips();
+  renderHistory();
+}
+
+// ─── UTILS ────────────────────────────────────────────────
+function copyLink() {
+  const url = window.location.href;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => showNotif('Link copied! 🔗 WhatsApp share කරන්න'));
+  } else {
+    showNotif('URL: ' + url);
+  }
+}
+
+function resetData() {
+  if (!confirm('සියලු data delete කරන්නද? Trip ඉවර වූ පසු මෙය use කරන්න.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  members = []; transactions = []; lastSavedTs = 0;
+  renderAll();
+  showNotif('Data reset කරන ලදී', '#f5a623');
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Hide loading after brief delay
+  setTimeout(() => {
+    document.getElementById('loadingScreen').style.display = 'none';
+  }, 800);
+
+  setType('income');
+  loadData(false);
+
+  // Poll every 4s
+  pollTimer = setInterval(() => loadData(true), POLL_MS);
+});
+</script>
+
+</body>
+</html>
